@@ -1,16 +1,17 @@
 ** Project:                                        Acumen Data Analysis Exercise
 ** Author:                                                           Shiyao Wang
-** Date and Time:                                               03/07/2023 20:15
+** Date and Time:                                               03/08/2023 21:55
 ********************************************************************************
 ********************************************************************************
 
 clear
 set more off
-cd "C:\Users\m1321\Downloads"
+cd "C:\Users\m1321\Desktop"
 
 **************************
 ** Preparation
 	capture ssc install missings
+	capture scc install outreg2
 	import excel using "Acumen_Data_Analysis_Exercise.xlsx", sheet("Data") firstrow clear
 	
 	** Global Color Settings
@@ -93,15 +94,28 @@ cd "C:\Users\m1321\Downloads"
 	ren (SexMale1 HospitalVisitThisQuarter1Y HealthScore) (Sex Visit H_Score)
 	codebook, compact
 	missings report
+
+	replace Age = . if Age > 110  // replace the abnormal values (Age and HealthScore) with missing 
+	replace Age = . if Age < 16
+	replace H_Score = . if H_Score == 10 
 	
 	foreach v of varlist * {
 		drop if missing(`v')
 	}
-	replace Age = . if Age >= 110  // replace the abnormal values (Age and HealthScore) with missing 
-	replace H_Score = . if H_Score == 10 
 	
+	tab Quarter
 	table Quarter, stat(fvpercent Sex Race) stat(mean Age) stat(median Age) /* stat(max Age) stat(min Age) */ nformat(%5.1f) listwise  // table method, cannot export to Excel
+	sum Age if Quarter == 1, d
+	sum Age if Quarter == 6, d
+	sum Age if Quarter == 12, d
 	
+	preserve
+	collapse (count) Quarter, by(EmployeeId)
+	tab Quarter
+	restore
+	
+	summarize
+
 	preserve
 	quiet {
 	tab Sex, gen(Sex_)
@@ -125,25 +139,21 @@ cd "C:\Users\m1321\Downloads"
 	format * %5.1f
 	format Quarter %5.1g
 	}
-	export excel using "Acumen_Data_Analysis_Exercise.xlsx", sheet("Q1(b)") cell("H20") firstrow(variables) sheetmodify keepcellfmt
+	export excel using "Acumen_Data_Analysis_Exercise.xlsx", sheet("dashboard") cell("B2") firstrow(variables) sheetmodify keepcellfmt
 	list
 	restore
-	
-	exit
-	
-	
+
 	
 **************************
 ** Question 2
 
-/*
 	boxchart Sex
 	boxchart Race
 	boxchart Visit
 	scatterchart H_Score Salary
 	scatterchart H_Score Age
-*/
 
 	regress H_Score Salary Visit Age i.Race Sex i.Quarter, robust
+	outreg2 to using "regression_out.xls", ctitle("Robust Multivariate Regression Estimates") auto(3) dec(10) nor2 pval
 
 
